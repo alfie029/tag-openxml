@@ -3,7 +3,6 @@
 
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
-
 using Newtonsoft.Json;
 
 using var inMemoryOpenXmlDoc = PresentationDocument.Open("Blank.pptx", true);
@@ -24,9 +23,15 @@ documentUserTagsPart.TagList.Append(new Tag()
     }),
 });
 
-presentationPart.SlideParts.ToList().ForEach(slide =>
+// Save those tag relationship to presentation customerDataList
+var docTagId = presentationPart.GetIdOfPart(documentUserTagsPart);
+presentationPart.Presentation.CustomerDataList ??= new CustomerDataList();
+presentationPart.Presentation.CustomerDataList.Append(new CustomerDataTags { Id = docTagId });
+
+presentationPart.SlideParts.ToList().ForEach(slidePart =>
 {
-    var slideUserTagsPart = slide.UserDefinedTagsParts.FirstOrDefault() ?? slide.AddNewPart<UserDefinedTagsPart>();
+    var slideUserTagsPart =
+        slidePart.UserDefinedTagsParts.FirstOrDefault() ?? slidePart.AddNewPart<UserDefinedTagsPart>();
     slideUserTagsPart.TagList ??= new TagList();
     slideUserTagsPart.TagList.Append(new Tag()
     {
@@ -45,11 +50,19 @@ presentationPart.SlideParts.ToList().ForEach(slide =>
                 {
                     PageId = Guid.Parse("ec249b82-4454-44fe-89f0-856d46c91d2e"),
                     Index = 3,
-                    slideId = 25       
+                    slideId = 25
                 },
             }
         }),
     });
+
+    // Save tag to slide and correct the relationship to CustomerDataList 
+    var tagId = slidePart.GetIdOfPart(slideUserTagsPart);
+    slidePart.Slide.CommonSlideData ??= new CommonSlideData();
+    slidePart.Slide.CommonSlideData.CustomerDataList ??= new CustomerDataList();
+    slidePart.Slide.CommonSlideData.CustomerDataList.Append(new CustomerDataTags { Id = tagId });
+
+    slidePart.Slide.Save();
 });
 
 inMemoryOpenXmlDoc.Save();
